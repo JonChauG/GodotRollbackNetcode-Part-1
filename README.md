@@ -1,26 +1,41 @@
 # GodotRollbackNetcode-Part-1
 
 Repositories:
+
 https://github.com/JonChauG/GodotRollbackNetcode-Part-1
+
 https://github.com/JonChauG/GodotRollbackNetcode-Part-2
+
 https://github.com/JonChauG/GodotRollbackNetcode-Part-3-FINAL
 
+---
+
 Tutorial Videos:
+
 Part 1: Base Game and Saving Game States - https://www.youtube.com/watch?v=AOct7C422z8
+
 Part 2: Delay-Based Netcode - https://www.youtube.com/watch?v=X55-gfqhQ_E
+
 Part 3 (Final): Rollback Netcode - https://www.youtube.com/watch?v=sg1Q_71cjd8
 
+---
+
 Part 1 Video Transcript:
+
 INTRO
+
   For this video, I'll be going over a simple base game and also a way of saving the game state that we’ll be using for rollback netcode later. Here is the final product of this video: we’ll be moving around the player object, the green square, with WASD, and when we press enter, we will rollback, or reset, the current game state to one from the past. So here, the green square will move back to where it was 7 frames ago.
 
 TREE
+
   Conventionally in a basic game, you may have your key input checks in your player character code because it is more simple, direct, and appropriate. However, to later more easily manage the inputs of the local player and networked players, I am using a basic Node I’ve named InputControl that manages the inputs for all Player objects, which are its children in the tree.
 
 SCENES
+
   The Player object is a basic KinematicBody and the Wall objects are basic StaticBodies. The only things I've changed from the default are the collision layer and mask bits so that Player objects will pass through other Player objects, but they will stop at Wall objects when moving using Godot’s move_and_collide() function. I've also included a Label here for the Player so that we can view a test value when we implement netcode later.
 
 INPUTCONTROL.GD
+
   So let us now go over the InputControl script, which is run by the InputControl node and is the core code that runs our game.
 
   The input delay variable sets how long it takes for a key press input to have an effect shown on screen for the player, and this delay is measured in terms of frames. So when we press WASD to move the player, there’s a delay given by this variable before our player object actually moves. We use input delay here to account for network latency, which is the time it takes for packets to be sent over the network. But because there is no networking right now in our basic game, input delay here doesn’t currently serve any practical function. I’ll go more into detail about the use of input delay when I introduce networking later.
@@ -46,6 +61,7 @@ INPUTCONTROL.GD
   To better understand what’s happening in these function calls, I’m gonna go over the LocalPlayer script now and then come back to the handle_input() function afterwards.-
 
 LOCALPLAYER.GD
+
   So, remember that we have set the collision layer and mask bits such that Player characters do not collide and stop at each other when we use Godot’s move_and_collide() function. In order to detect intersections with other Player objects later, I will be using a Rect2 as a collision mask for intersection checks. The counter variable is just the test value that the Player object will show with its Label.
   
   When we call reset_state, we directly set all of the Player object variables according to the given state dictionary. Now, when I wrote this function, I had it in mind that if a child of InputControl does not exist in the state that we are resetting to, we will delete it. This is meant for objects that Players may spawn in during the middle of the game, such as projectiles. So if something like a projectile exists in the current game state, but does not exist in the game state that we are resetting to, we must delete it to correctly produce the game state we want. It’s important to note that if you want to implement something such as projectiles that can have their state reset, they should be direct children of InputControl in the tree according to the way I’ve implemented it.
@@ -57,6 +73,7 @@ LOCALPLAYER.GD
   And when we call get_state(), we just return a dictionary with the values needed to save a state.
 
 INPUTCONTROL.GD
+
   So, returning back to the handle_input() function of InputControl...
 
   At the beginning of the frame, we’ll be saving the current game state before we record any inputs.
@@ -80,4 +97,5 @@ INPUTCONTROL.GD
   And then finally we increment the frame_num.
 
 DEMO
+
   So, let’s run the game. I’m pressing WASD, and movement’s good. Now let’s press enter, so we revert to the state 7 frames ago. Now sometimes there’s a little movement after pressing Enter even though we’re not pressing WASD. This is from the inputs that were held back by input delay and are now applied on the current frame, causing the player to move immediately after the state rollback. In the next video, we’ll introduce delay-based netcode.
