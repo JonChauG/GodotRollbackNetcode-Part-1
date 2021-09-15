@@ -6,10 +6,10 @@ var input_delay = 5
 #number of frame states to save in order to implement rollback (max amount of frames able to rollback)
 var rollback = 7
 
+var frame_num = 0 #ranges between 0-255 per circular input array cycle (cycle is every 256 frames)
+
 var input_array = [] #array to hold 256 Inputs
 var state_queue = [] #queue for Frame_States of past frames (for rollback)
-
-var frame_num = 0 #ranges between 0-255 per circular input array cycle (cycle is every 256 frames)
 
 var canReset = true #for testing state reset
 
@@ -17,20 +17,25 @@ var canReset = true #for testing state reset
 class Inputs:
 	#Indexing [0]: W, [1]: A, [2]: S, [3]: D, [4]: SPACE
 	#inputs by local player for a single frame
-	var local_input = [false, false, false, false, false] 
+	var local_input = [false, false, false, false, false]
+	
+	func duplicate():
+		var duplicate = Inputs.new()
+		duplicate.local_input = self.local_input.duplicate()
+		return duplicate
 
 
 class Frame_State:
-	var local_input #inputs by local player for a single frame
+	var inputs #the Inputs of this state's frame
 	var frame #state's frame number according to 256 frame cycle number
 	var game_state #holds the values needed for tracking a game's state at a given frame.
 
-	func _init(_local_input : Array, _frame : int, _game_state : Dictionary):
-		self.local_input = _local_input #Array of booleans
-		self.frame = _frame
-		self.game_state = _game_state #Dictionary of dictionaries
+	func _init(_inputs : Inputs, _frame : int, _game_state : Dictionary):
+		inputs = _inputs
+		frame = _frame
+		game_state = _game_state #Dictionary of dictionaries
 		#game_state keys are child names, values are their individual state dictionaries
-		#states: Keys are state vars of the children (e.g. x, y), values are the var values 
+		#state dicts: Keys are state var names (e.g. x, y), values are the var values 
 
 #---functions---
 func _ready():
@@ -40,22 +45,21 @@ func _ready():
 	
 	#initialize state queue
 	for _x in range (0, rollback):
-		#empty local input, frame 0, inital game state
-		state_queue.append(Frame_State.new([], 0, get_game_state()))
+		#empty input, frame 0, inital game state
+		state_queue.append(Frame_State.new(Inputs.new(), 0, get_game_state()))
 
 
 func _physics_process(_delta):
 	handle_input() 
 
 
-func handle_input(): #get input, run rollback if necessary, call input execution
+func handle_input(): #get inputs, call child functions
 	var pre_game_state = get_game_state()
-	var current_input = null
-	var local_input = [false, false, false, false, false]
 	
-	frame_start_all() #for all children, set their update vars to their current/actual values
+	frame_start_all()
 	
 	#record local inputs
+	var local_input = [false, false, false, false, false]
 	if Input.is_key_pressed(KEY_W):
 		local_input[0] = true
 	if Input.is_key_pressed(KEY_A):
@@ -67,23 +71,22 @@ func handle_input(): #get input, run rollback if necessary, call input execution
 	if Input.is_key_pressed(KEY_SPACE):
 		local_input[4] = true
 
+	input_array[(frame_num + input_delay) % 256].local_input = local_input
+
+	var current_input = input_array[frame_num].duplicate()
+	
 	#testing resetting of state
 	if Input.is_key_pressed(KEY_ENTER):
 		canReset && reset_state_all(state_queue[0].game_state)
 		canReset = false
 	else:
 		canReset = true
-
-	input_array[(frame_num + input_delay) % 256].local_input = local_input
-
-	current_input = Inputs.new()
-	current_input.local_input = input_array[frame_num].local_input.duplicate()
 	
 	input_update_all(current_input) #update children with current input
-	execute_all() #implement all applied updates/inputs to all child objects
+	frame_end_all()
 	
 	#store current frame state into queue
-	state_queue.append(Frame_State.new(current_input.local_input, frame_num, pre_game_state))
+	state_queue.append(Frame_State.new(current_input, frame_num, pre_game_state))
 	
 	#remove oldest state from queue
 	state_queue.pop_front()
@@ -106,9 +109,9 @@ func input_update_all(input : Inputs):
 		child.input_update(input)
 
 
-func execute_all():
+func frame_end_all():
 	for child in get_children():
-		child.execute()
+		child.frame_end()
 
 
 func get_game_state():
