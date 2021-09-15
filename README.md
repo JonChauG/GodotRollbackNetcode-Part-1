@@ -50,7 +50,7 @@ INPUTCONTROL.GD
 
   A game state is saved as a dictionary of dictionaries. The upper-layer game_state dictionary will have InputControl child names as keys. So here, the string LocalPlayer would be a key. And the value for each key is a dictionary that holds the variables needed to save the state of the given child. So the value of the LocalPlayer key is another dictionary that holds variables such as x position, y-position and other relevant values. 
 
-  So in our ready function, we initialize our input array and state queue by filling them up with Inputs and Frame_State instances respectively.
+  So in our ready() function, we initialize our input array and state queue by filling them up with Inputs and Frame_State instances respectively.
 
   The physics_process() function is called once per frame by Godot. It only calls the handle_input() function now, but we'll add more to this later when we introduce networking.
 
@@ -64,11 +64,11 @@ LOCALPLAYER.GD
 
   So, remember that we have set the collision layer and mask bits such that Player characters do not collide and stop at each other when we use Godot’s move_and_collide() function. In order to detect intersections with other Player objects later, I will be using a Rect2 as a collision mask for intersection checks. The counter variable is just the test value that the Player object will show with its Label.
   
-  When we call reset_state, we directly set all of the Player object variables according to the given state dictionary. Now, when I wrote this function, I had it in mind that if a child of InputControl does not exist in the state that we are resetting to, we will delete it. This is meant for objects that Players may spawn in during the middle of the game, such as projectiles. So if something like a projectile exists in the current game state, but does not exist in the game state that we are resetting to, we must delete it to correctly produce the game state we want. It’s important to note that if you want to implement something such as projectiles that can have their state reset, they should be direct children of InputControl in the tree according to the way I’ve implemented it.
+  When we call reset_state(), we directly set all of the Player object variables according to the given state dictionary. Now, when I wrote this function, I had it in mind that if a child of InputControl does not exist in the state that we are resetting to, we will delete it. This is meant for objects that Players may spawn in during the middle of the game, such as projectiles. So if something like a projectile exists in the current game state, but does not exist in the game state that we are resetting to, we must delete it to correctly produce the game state we want. It’s important to note that if you want to implement something such as projectiles that can have their state reset, they should be direct children of InputControl in the tree according to the way I’ve implemented it.
 
   In the input_update() function, the Player object calculates its own new state based on the Inputs class instance given by InputControl. So here we apply the key presses recorded by InputControl to the Player object, move and test for collisions with walls, and update our Rect2 collision mask to match the new Player position.
 
-  With the frame_start() function, we execute code that only needs to be run once at the beginning of the state calculation for the Player, and similarly with the frame_end() function, we execute code that only needs to be run once^ the final Player state for the frame is obtained. For now, frame_start(), input_update(), and frame_end() all run once per frame, so I’ll go back to this when we have rollback netcode and input_update can be called multiple times in a frame.
+  With the frame_start() function, we execute code that only needs to be run once at the beginning of the state calculation for the Player, and similarly with the frame_end() function, we execute code that only needs to be run once the final Player state for the frame is obtained. For now, frame_start(), input_update(), and frame_end() all run once per frame, so I’ll go back to this when we have rollback netcode and input_update can be called multiple times in a frame.
 
   And when we call get_state(), we just return a dictionary with the values needed to save a state.
 
@@ -88,7 +88,7 @@ INPUTCONTROL.GD
 
   We apply the inputs for the current frame for each child, the only child being the Player object.
 
-  And then we call frame_end for each child.
+  And then we call frame_end() for each child.
 
   Then, we create and add this frame's Frame_State class instance to the state_queue. We're using the pre_game_state we obtained at the beginning of the handle_input() function call because of rollback netcode reasons we'll see later. Basically, if inputs from networked players arrive to correct game states in the past and as a result correct the current game_state, we want to use this pre_game_state as a base to begin resimulation with the arriving inputs. We cannot use a game state recorded at the end of the frame because the inputs have already been applied in the state and cannot be corrected. 
 
